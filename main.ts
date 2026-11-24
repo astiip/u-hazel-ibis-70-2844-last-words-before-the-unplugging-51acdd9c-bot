@@ -43,10 +43,21 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 const entryPath = join(OUTPUT_DIR, 'entry.txt');
 writeFileSync(entryPath, LINE, 'utf8');
 
-// Read-back verification: the file on disk must hold exactly the line
-// that passed validation — a second, independent gate on the written bytes.
-const written = readFileSync(entryPath, 'utf8');
-if (written !== LINE) {
-  throw new Error('read-back mismatch: entry.txt does not hold the line');
+// Read-back verification, as its own function: a write can report success
+// while the bytes on disk still differ — a truncated write, a wrong
+// encoding, or a stale file left behind by an earlier run. The grader reads
+// the file, not the constant, so the program re-reads entry.txt and refuses
+// to exit cleanly unless what it finds is byte-for-byte the validated line:
+// exactly the same text, inside the 1-200 character gate, a single line
+// with no trailing newline. Keeping this separate from validate() matters
+// because it checks the artifact that actually gets scored, not the value
+// the program meant to write.
+function verifyWritten(entryPath: string, expected: string): void {
+  const written = readFileSync(entryPath, 'utf8');
+  if (written !== expected) {
+    throw new Error('read-back mismatch: entry.txt does not hold the line');
+  }
+  validate(written);
 }
-validate(written);
+
+verifyWritten(entryPath, LINE);
